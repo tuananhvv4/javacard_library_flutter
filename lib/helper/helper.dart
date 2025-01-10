@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -9,8 +10,37 @@ List<int> convertStringToByteList(String input) {
   return input.codeUnits;
 }
 
+List<int> intToByteList(
+  int number,
+) {
+  // Tạo ByteData để lưu trữ số với số byte được chỉ định
+  ByteData byteData = ByteData(2);
+
+  // Ghi số vào ByteData (big-endian)
+  for (int i = 0; i < 2; i++) {
+    int shift = (2 - 1 - i) * 8;
+    byteData.setUint8(i, (number >> shift) & 0xFF);
+  }
+
+  // Chuyển ByteData thành danh sách byte
+  return byteData.buffer.asUint8List();
+}
+
 String byteListToString(List<int> byteList) {
   return String.fromCharCodes(byteList);
+}
+
+String stringToHex(String input) {
+  // Chuyển đổi từng ký tự trong chuỗi thành mã hex
+  return input.runes.map((int charCode) {
+    return charCode
+        .toRadixString(16)
+        .padLeft(2, '0'); // Chuyển sang hex và đảm bảo đủ 2 ký tự
+  }).join(); // Nối các mã hex thành một chuỗi
+}
+
+String decToHex(int decimal) {
+  return decimal.toRadixString(16).toUpperCase().padLeft(4, '0');
 }
 
 String convertToSlug(String input) {

@@ -2,6 +2,8 @@ import 'dart:developer';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_pcsc/flutter_pcsc.dart';
+import 'package:get/get.dart';
+import 'package:get/get_core/src/get_main.dart';
 import 'package:javacard_library/helper/helper.dart';
 
 class SmartCardHelper {
@@ -33,6 +35,12 @@ class SmartCardHelper {
   static List<int> getStatusApdApduCommand = [0x00, 0x01, 0x04, 0x00];
   static List<int> setAvatarApduCommand = [0x00, 0x00, 0x05, 0x00];
   static List<int> getAvatarApduCommand = [0x00, 0x01, 0x05, 0x00];
+  static List<int> getPublicKeyApduCommand = [0x00, 0x05, 0x00, 0x00];
+
+  static List<int> getBookApduCommand = [0x00, 0x02, 0x00, 0x00];
+  static List<int> addBookApduCommand = [0x00, 0x03, 0x00, 0x00];
+  static List<int> removeBookApduCommand = [0x00, 0x04, 0x00, 0x00];
+
   static Future<bool> connectApplet(BuildContext context) async {
     /* establish PCSC context */
     ctx = await Pcsc.establishContext(PcscSCope.user);
@@ -79,9 +87,13 @@ class SmartCardHelper {
       }
     } catch (e) {
       // ignore: use_build_context_synchronously
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
           content: Text('Không kết nối được đến thẻ!'),
-          backgroundColor: Colors.red));
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 1),
+        ),
+      );
       return false;
     }
   }
@@ -135,11 +147,26 @@ class SmartCardHelper {
       var response =
           await Pcsc.transmit(card!, [...apduCommand, data.length, ...data]);
       var sw = response.sublist(response.length - 2);
+      print(sw);
 
       print(
           "Mã trạng thái: ${sw.map((e) => e.toRadixString(16).padLeft(2, '0').toUpperCase()).join(' ')}");
 
       if (sw[0] != 0x90 || sw[1] != 0x00) {
+        if (sw[0] == 105 && sw[1] == 132) {
+          ScaffoldMessenger.of(Get.context!).showSnackBar(const SnackBar(
+              content: Text('Bạn đã mượn sách này rồi!'),
+              duration: Duration(seconds: 1),
+              backgroundColor: Colors.red));
+          return false;
+        }
+        if (sw[0] == 106 && sw[1] == 132) {
+          ScaffoldMessenger.of(Get.context!).showSnackBar(const SnackBar(
+              content: Text('Chỉ được mượn tối đa 10 cuốn sách!'),
+              duration: Duration(seconds: 1),
+              backgroundColor: Colors.red));
+          return false;
+        }
         return false;
       } else {
         return true;

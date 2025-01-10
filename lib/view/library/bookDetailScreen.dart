@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -139,24 +141,25 @@ class _BookDetailScreenState extends State<BookDetailScreen> {
                         CupertinoDialogAction(
                           child: Text("ĐỒNG Ý"),
                           onPressed: () async {
-                            bool result = await createBookBorrow(
-                                int.parse(byteListToString(
-                                    await SmartCardHelper.sendAPDUcommand(
-                                        SmartCardHelper.getIdApduCommand))),
-                                widget.book.id!,
-                                int.parse(_borrowDay.text));
+                            bool result =
+                                await SmartCardHelper.sendAPDUcommandAndData(
+                                    SmartCardHelper.addBookApduCommand,
+                                    intToByteList(widget.book.id!));
                             if (result) {
+                              await createBookBorrow(
+                                  int.parse(byteListToString(
+                                      await SmartCardHelper.sendAPDUcommand(
+                                          SmartCardHelper.getIdApduCommand))),
+                                  widget.book.id!,
+                                  int.parse(_borrowDay.text));
                               ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
                                       content: Text('Mượn sách thành công!'),
                                       backgroundColor: Colors.green));
                               _borrowDay.clear();
                               Navigator.of(context).pop();
+                              Navigator.of(context).pop();
                             } else {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                      content: Text('Mượn sách thất bại!'),
-                                      backgroundColor: Colors.red));
                               Navigator.of(context).pop();
                             }
                           },

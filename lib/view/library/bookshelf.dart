@@ -58,6 +58,7 @@ class _BookShelfScreenState extends State<BookShelfScreen> {
                       children: [
                         Text(
                           book.name.toString(),
+                          maxLines: 2,
                           style: const TextStyle(
                               fontSize: 25,
                               fontWeight: FontWeight.w500,
@@ -169,6 +170,9 @@ class _BookShelfScreenState extends State<BookShelfScreen> {
                             bool result = await returnBook(
                                 borrowData.userId!, borrowData.bookId!);
                             if (result) {
+                              SmartCardHelper.sendAPDUcommandAndData(
+                                  SmartCardHelper.removeBookApduCommand,
+                                  intToByteList(borrowData.bookId!));
                               ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
                                       content: Text('Trả sách thành công!'),
@@ -206,6 +210,13 @@ class _BookShelfScreenState extends State<BookShelfScreen> {
         );
       },
     );
+  }
+
+  @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+    print(SmartCardHelper.sendAPDUcommand(SmartCardHelper.getBookApduCommand));
   }
 
   @override
@@ -267,7 +278,6 @@ class _BookShelfScreenState extends State<BookShelfScreen> {
                         total++;
                       }
                     }
-                    print(total);
                     if (total == 0) {
                       return const Center(
                         child: Text('Danh sách trống!',

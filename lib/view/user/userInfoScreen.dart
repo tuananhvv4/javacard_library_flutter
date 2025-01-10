@@ -45,7 +45,7 @@ class _UserinfoScreenState extends State<UserinfoScreen> {
       SmartCardHelper.sendAPDUcommandAndData(
           SmartCardHelper.setAddressApduCommand,
           convertStringToByteList(address));
-
+      editUser(Api.user.id!, name, '', address, '', '', 1, '');
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text("Cập nhật thông tin thành công"),
           backgroundColor: Colors.green));
@@ -72,15 +72,12 @@ class _UserinfoScreenState extends State<UserinfoScreen> {
       avatar = await SmartCardHelper.sendAPDUcommand(
           SmartCardHelper.getAvatarApduCommand);
 
-      if (avatar!.length > 0) {
+      if (avatar!.isNotEmpty) {
         setState(() {
-          log('có avatar');
           isHaveAvatar = true;
         });
       }
     } catch (e) {
-      log("lỗi");
-
       log(e.toString());
     }
 

@@ -1,4 +1,8 @@
 import 'dart:convert'; // Để xử lý JSON
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:get/get_connect/http/src/utils/utils.dart';
+import 'package:get/get_core/src/get_main.dart';
 import 'package:http/http.dart' as http;
 import 'package:javacard_library/model/book.dart';
 import 'package:javacard_library/model/bookBorrows.dart';
@@ -24,8 +28,8 @@ Future<int> getLastestUserID() async {
   }
 }
 
-Future<bool> createUser(
-    String name, String pin, String address, String img) async {
+Future<bool> createUser(String name, String pin, String address, String img,
+    String publicKey) async {
   const apiUrl = 'https://nguyenanh.fun/public/api/create-user'; // URL API
 
   // Tham số cần gửi
@@ -34,7 +38,8 @@ Future<bool> createUser(
     'pin': pin,
     'address': address,
     'avatar': img,
-    'role': 'user'
+    'role': 'user',
+    'public_key': publicKey,
   };
 
   try {
@@ -449,10 +454,19 @@ Future<bool> createBookBorrow(int userID, int bookID, int duration) async {
     // Kiểm tra phản hồi
     if (response.statusCode == 200) {
       final result = jsonDecode(response.body); // Parse JSON
-      print('Mượn sách thành công: $requestData');
-      return true;
+      if (result['status'] == true) {
+        print('Mượn sách thành công: $requestData');
+        return true;
+      }
+      print(result['message']);
+      return false;
     } else {
-      print('Lỗi: ${response.statusCode} - ${response.reasonPhrase}');
+      final result = jsonDecode(response.body);
+      print(result['msg']);
+      ScaffoldMessenger.of(Get.context!).showSnackBar(SnackBar(
+          content: Text(result['msg']),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 1)));
       return false;
     }
   } catch (error) {

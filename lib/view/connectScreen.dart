@@ -179,9 +179,12 @@ class _ConnectScreenState extends State<ConnectScreen> {
             convertStringToByteList(address));
         SmartCardHelper.sendAPDUcommandAndData(
             SmartCardHelper.setStatusApduCommand, convertStringToByteList('1'));
+        String publicKey = byteListToString(
+            await SmartCardHelper.sendAPDUcommand(
+                SmartCardHelper.getPublicKeyApduCommand));
 
         // lưu thông tin người dùng lên CSDL
-        bool result = await createUser(name, password, address, '');
+        bool result = await createUser(name, password, address, '', publicKey);
         if (!result) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -208,9 +211,68 @@ class _ConnectScreenState extends State<ConnectScreen> {
   }
 
   checkCard() async {
-    var response =
+    var responseId =
         await SmartCardHelper.sendAPDUcommand(SmartCardHelper.getIdApduCommand);
-    if (response.isNotEmpty) {
+    String responseStatus = byteListToString(
+        await SmartCardHelper.sendAPDUcommand(
+            SmartCardHelper.getStatusApdApduCommand));
+    print('trạng thái thẻ: $responseStatus');
+    if (responseId.isNotEmpty) {
+      String cardId = byteListToString(responseId);
+      String cardStatus = byteListToString(
+          await SmartCardHelper.sendAPDUcommand(
+              SmartCardHelper.getStatusApdApduCommand));
+      Api.user = await getUserByID(int.parse(cardId));
+      if (cardStatus == "0") {
+        if (Api.user.status == 0) {
+          setState(() {
+            countFail = 0;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Thẻ đã bị khóa!'),
+              duration: Duration(seconds: 1),
+              backgroundColor: Colors.red,
+            ),
+          );
+        } else {
+          SmartCardHelper.sendAPDUcommandAndData(
+              SmartCardHelper.setStatusApduCommand,
+              convertStringToByteList('1'));
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Thẻ đã được mở khóa!'),
+              duration: Duration(seconds: 1),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } else if (Api.user.status == 0) {
+        setState(() {
+          countFail = 0;
+        });
+        SmartCardHelper.sendAPDUcommandAndData(
+            SmartCardHelper.setStatusApduCommand, convertStringToByteList('0'));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Thẻ đã bị khóa!'),
+            duration: Duration(seconds: 1),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      if (responseStatus == "0") {
+        setState(() {
+          countFail = 0;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Thẻ đã bị khóa!'),
+            duration: Duration(seconds: 1),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
       showLoginDialog();
     } else {
       showAddInfoDialog();
@@ -275,7 +337,20 @@ class _ConnectScreenState extends State<ConnectScreen> {
                   ElevatedButton(
                     onPressed: countFail > 0
                         ? () async {
+                            String responseId = byteListToString(
+                                await SmartCardHelper.sendAPDUcommand(
+                                    SmartCardHelper.getIdApduCommand));
+                            Api.user = await getUserByID(int.parse(responseId));
                             String password = passwordController.text.trim();
+                            String responsePassword = byteListToString(
+                              await SmartCardHelper.sendAPDUcommand(
+                                SmartCardHelper.getPasswordApduCommand,
+                              ),
+                            );
+                            String responseStatus = byteListToString(
+                                await SmartCardHelper.sendAPDUcommand(
+                                    SmartCardHelper.getStatusApdApduCommand));
+                            // Kiểm tra mật khẩu không được để trống
                             if (password.isNotEmpty) {
                               String responsePassword = byteListToString(
                                 await SmartCardHelper.sendAPDUcommand(
@@ -283,7 +358,7 @@ class _ConnectScreenState extends State<ConnectScreen> {
                                 ),
                               );
                               print(responsePassword);
-
+                              // Kiểm tra nhập số lần nhập sai
                               if (countFail == 0) {
                                 // Khóa thẻ
                                 await SmartCardHelper.sendAPDUcommandAndData(
@@ -296,28 +371,27 @@ class _ConnectScreenState extends State<ConnectScreen> {
                                     backgroundColor: Colors.red,
                                   ),
                                 );
+                                editUser(
+                                    Api.user.id!, '', '', '', '', '', 0, '');
                                 Navigator.pop(context);
-                              } else if (byteListToString(
-                                      await SmartCardHelper.sendAPDUcommand(
-                                          SmartCardHelper
-                                              .getStatusApdApduCommand)) ==
-                                  "0") {
-                                setState(() {
-                                  countFail = 0;
-                                });
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Thẻ đã bị khóa!'),
-                                    duration: Duration(seconds: 1),
-                                    backgroundColor: Colors.red,
-                                  ),
-                                );
+                                // kiểm tra trạng thái thẻ
+                              } else if (responseStatus == "0") {
+                                if (Api.user.status == 0) {
+                                  setState(() {
+                                    countFail = 0;
+                                  });
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Thẻ đã bị khóa!'),
+                                      duration: Duration(seconds: 1),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                } else {}
+
+                                // Kiểm tra mật khẩu có đúng không
                               } else if (responsePassword == password) {
                                 //Kiểm tra có phải admin không
-                                int id = int.parse(byteListToString(
-                                    await SmartCardHelper.sendAPDUcommand(
-                                        SmartCardHelper.getIdApduCommand)));
-                                Api.user = await getUserByID(id);
                                 bool isAdmin =
                                     checkIsAdmin(await Api.getUser());
                                 getXState.setIsAdmin(isAdmin);
@@ -340,15 +414,30 @@ class _ConnectScreenState extends State<ConnectScreen> {
                                 // Sai mật khẩu
                                 setState(() {
                                   countFail--;
+                                  if (countFail == 0) {
+                                    SmartCardHelper.sendAPDUcommandAndData(
+                                        SmartCardHelper.setStatusApduCommand,
+                                        convertStringToByteList('0'));
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('Thẻ đã bị khóa!'),
+                                        duration: Duration(seconds: 1),
+                                        backgroundColor: Colors.red,
+                                      ),
+                                    );
+                                    editUser(Api.user.id!, '', '', '', '', '',
+                                        0, '');
+                                  } else {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('Mật khẩu không đúng!'),
+                                        duration: Duration(seconds: 1),
+                                        backgroundColor: Colors.red,
+                                      ),
+                                    );
+                                  }
                                   passwordController.clear();
                                 });
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Mật khẩu không đúng!'),
-                                    duration: Duration(seconds: 1),
-                                    backgroundColor: Colors.red,
-                                  ),
-                                );
                               }
                             }
                           }
